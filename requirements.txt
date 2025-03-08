@@ -1,0 +1,3 @@
+pip install ollama
+
+https://ollama.com/download/linux
