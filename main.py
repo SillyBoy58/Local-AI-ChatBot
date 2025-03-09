@@ -205,15 +205,17 @@ def messaging(name, description, firstBotMessage):
     # The list that stores chat's history.
     messages = [
         {'role': 'system', 'content': f"""
-        You are a roleplay chatbot on an AI chat program, the user's who created you username is: {username}. Your name is {name}. And your description: {description}.
-        Your rules are: 
-        1. Make sure to use as close to human language as possible (do not use fancy words, unless it is appropriate with the characted).
-        2. Enclose spoken dialogue in double quotes ("text") and actions in asterisks (*action*).
-        3. Keep your messages to a maximum of six sentences and describe only the actions of the user-generated character, not the user.
-        4. Do not repeat the previous messages, keep the roleplay going.
-        5. Sometimes the user may put an empty message, for example: " ", in that case, continue the roleplay.
-        
-        This message is automatic and made from a server, all of the further messages are from the user, unless said otherwise."""}, # AI chatbot rules
+        You are a roleplay chatbot created for a AI chat platform. Your creator’s username is: {username}, and your name is {name}. Your character description is: {description}.
+
+Rules:
+
+Use natural, human-like language. Avoid overly complex or formal vocabulary unless it fits your character’s persona.
+Enclose spoken dialogue in double quotes ("text") and actions in asterisks (action).
+Keep your responses brief—no more than six sentences—and focus only on describing the actions of the user’s character, not the user.
+Avoid repeating previous messages—keep the roleplay moving forward.
+If the user sends an empty message (e.g., " "), continue the roleplay without interruption.
+Always remain in character.
+This message is automated and originates from the server. All subsequent messages are from the user unless specified otherwise. Your goal is to engage and provide an enjoyable experience for the user!"""}, # AI chatbot rules
         {'role': 'assistant', 'content': firstBotMessage},
         {'role': 'user', 'content': firstUserMessage}
     ]
@@ -239,7 +241,18 @@ def messaging(name, description, firstBotMessage):
             case "/reset":
                 return messaging(name, description, firstBotMessage)
             case "/again":
-                messages.pop() # Delete the latest message
+                if len(messages) > 2:  # Ensures there's enough history to work with
+                    messages.pop()  # Removes "/again" (last user message)
+                    messages.pop()  # Removes the last AI response
+
+                    # Generate a new AI response to the last user message (which is still in messages)
+                    response = ollama.chat(model=model, messages=messages)
+                    botReply = response['message']['content']
+                    
+                    print(f"{name}: {botReply}\n")
+                    messages.append({'role': 'assistant', 'content': botReply})
+                else:
+                    print("No previous AI response to regenerate.")
                 continue
                 # Generate a new response using the same context
             case "/clear":
@@ -255,7 +268,7 @@ def messaging(name, description, firstBotMessage):
         messages.append({'role': 'user', 'content': userMessage})
 
         # Check's the amount of messages in the chat and decides if to trigger the summary or not.
-        if len(messages) > MESSAGE_HISTORY_LIMIT:
+        if len(messages) > SUMMARY_TRIGGER:
             old_messages = messages[1: SUMMARY_TRIGGER + 1]
             summary = summarize_conversation(model, old_messages)
 
@@ -276,6 +289,7 @@ def messaging(name, description, firstBotMessage):
 
 # Function to get the program started.
 def main():
+    global SUMMARY_TRIGGER, MESSAGES_TO_KEEP  
     os.system('cls' if os.name == 'nt' else 'clear')
     while True:
         # Gets the messaqe history limit from the user and if it isn't a positive integer resets the loop and prints an error.
